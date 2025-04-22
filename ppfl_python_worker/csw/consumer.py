@@ -41,9 +41,9 @@ if not logger.handlers:
 
 def extract_percentiles_from_doc(doc):
     """
-    Given a Mongo document, attempt to extract the fingerprint statistics percentiles.
-    This assumes the structure is:
-      doc["rawFingerprintJson"]["fingerprint"]["recordSet"][0]["field"][0]["statistics"]["percentiles"]
+    Extracts the percentiles dictionary from a fingerprint document.
+    
+    Attempts to navigate the nested structure of the document to retrieve the percentiles under statistics. Returns an empty dictionary if extraction fails or the expected structure is missing.
     """
     try:
         raw = doc.get("RawFingerprintJson") or doc.get("rawFingerprintJson")
@@ -64,9 +64,11 @@ def extract_percentiles_from_doc(doc):
 
 def extract_statistics_from_doc(doc):
     """
-    Given a Mongo document, attempt to extract all statistics including percentiles.
-    This assumes the structure is:
-      doc["rawFingerprintJson"]["fingerprint"]["recordSet"][0]["field"][0]["statistics"]
+    Extracts the complete statistics dictionary from a fingerprint MongoDB document.
+    
+    Attempts to retrieve all statistical data, including percentiles, from the nested
+    structure under 'rawFingerprintJson' → 'fingerprint' → 'recordSet' → 'field' → 'statistics'.
+    Returns an empty dictionary if extraction fails or the expected structure is missing.
     """
     try:
         raw = doc.get("RawFingerprintJson") or doc.get("rawFingerprintJson")
@@ -86,7 +88,10 @@ def extract_statistics_from_doc(doc):
 
 def extract_field_metadata(doc):
     """
-    Extract field name, description, data type from the fingerprint document.
+    Extracts metadata for the fingerprint field from a MongoDB document.
+    
+    Returns a dictionary containing the field's name, description, data type, unit, and field ID.
+    If extraction fails or required data is missing, returns an empty dictionary.
     """
     try:
         raw = doc.get("RawFingerprintJson") or doc.get("rawFingerprintJson")
@@ -117,7 +122,13 @@ def extract_field_metadata(doc):
 
 def interpret_wasserstein_distance(distance):
     """
-    Provide an interpretation of the Wasserstein distance value.
+    Returns a qualitative interpretation of a Wasserstein distance value.
+    
+    Args:
+        distance: The Wasserstein distance between two statistical profiles.
+    
+    Returns:
+        A string describing the degree of similarity based on the distance.
     """
     if distance < 5:
         return "Very similar statistical profiles"
@@ -130,7 +141,16 @@ def interpret_wasserstein_distance(distance):
 
 
 def query_fingerprint_stats(fp_id, coll):
-    """Retrieve fingerprint document by _id and extract its statistics."""
+    """
+    Retrieves fingerprint statistics and metadata for a given fingerprint ID from MongoDB.
+    
+    Args:
+    	fp_id: The unique identifier of the fingerprint document.
+    	coll: The MongoDB collection to query.
+    
+    Returns:
+    	A tuple containing the statistics dictionary and the field metadata dictionary.
+    """
     doc = coll.find_one({"_id": fp_id})
     if not doc:
         logger.error(f"[Consumer] No document found for fingerprint ID {fp_id}")
@@ -141,14 +161,9 @@ def query_fingerprint_stats(fp_id, coll):
 
 def callback(ch, method, properties, body):
     """
-    When a message arrives in queue A, parse the JSON, then:
-      1. Extract candidate fingerprint IDs.
-      2. For each candidate, retrieve its full document and extract its statistics.
-      3. Retrieve the two root fingerprint documents (using ROOT_FP_ID1 and ROOT_FP_ID2).
-      4. Use the statistics analyzer to compare candidate stats vs. each root stats.
-      5. Aggregate the comparison (here, we take the minimum distance).
-      6. Add the similarity metric to the result message.
-      7. Pass the message to the Celery task and publish final results to queue B.
+    Handles incoming messages from the RabbitMQ queue, processes candidate fingerprint data, compares each candidate's statistics to two root fingerprints, interprets similarity, enriches results with insights, and publishes the final output to another queue.
+    
+    Parses the message, retrieves relevant fingerprint statistics and metadata from MongoDB, computes Wasserstein distances using a statistics analyzer, identifies the closest and farthest candidates, and augments the result with additional verification data before publishing. Acknowledges the message on success or negatively acknowledges it on error.
     """
     try:
         message_json = json.loads(body)
@@ -451,6 +466,11 @@ def callback(ch, method, properties, body):
 
 
 def main():
+    """
+    Starts the RabbitMQ consumer to process fingerprint candidate messages.
+    
+    Establishes a connection to RabbitMQ, declares the input queue, sets message prefetching, and begins consuming messages using the callback handler.
+    """
     connection = pika.BlockingConnection(
         pika.ConnectionParameters(host=RABBITMQ_HOST, port=RABBITMQ_PORT)
     )

@@ -30,6 +30,12 @@ logging.getLogger('ppfl_python_worker.csw').setLevel(logging.DEBUG)
 # Prevent Celery from hijacking root logger
 @setup_logging.connect
 def setup_celery_logging(loglevel=None, **kwargs):
+    """
+    Disables Celery's default logging configuration.
+    
+    This function is connected to the Celery `setup_logging` signal to prevent Celery
+    from overriding the root logger settings.
+    """
     pass
 
 broker_url = os.environ.get("CELERY_BROKER_URL")

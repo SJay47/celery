@@ -8,11 +8,12 @@ logger.setLevel(logging.DEBUG)
 
 def extract_percentiles(stats: dict) -> list:
     """
-    Extracts the p25, p50, and p75 percentiles from the provided statistics dictionary.
-    If any of these keys are missing, a default value of 0 is used.
-
-    :param stats: A dictionary expected to have keys 'p25', 'p50', and 'p75'
-    :return: A list of three numeric values [p25, p50, p75]
+    Extracts the 25th, 50th, and 75th percentiles from a statistics dictionary.
+    
+    If a percentile key ("p25", "p50", or "p75") is missing, its value defaults to 0.
+    
+    Returns:
+        A list containing the values for p25, p50, and p75 percentiles.
     """
     p25 = stats.get("p25", 0)
     p50 = stats.get("p50", 0)
@@ -22,11 +23,15 @@ def extract_percentiles(stats: dict) -> list:
 
 def extract_statistics(stats: dict) -> list:
     """
-    Extracts all numeric statistics from the provided statistics dictionary.
-    If any of these keys are missing, a default value of 0 is used.
-
-    :param stats: A dictionary with statistics (min, max, mean, median, stdDev)
-    :return: A list of numeric values representing the statistics
+    Extracts a comprehensive set of statistics from a dictionary, defaulting missing values to 0.
+    
+    The returned list includes min, max, mean, median, standard deviation, unique count, null count, and the 25th, 50th, and 75th percentiles (from a nested "percentiles" dictionary if present).
+    
+    Args:
+        stats: Dictionary containing statistical metrics.
+    
+    Returns:
+        List of numeric values representing the extracted statistics in a fixed order.
     """
     min_val = stats.get("min", 0)
     max_val = stats.get("max", 0)
@@ -56,12 +61,16 @@ def extract_statistics(stats: dict) -> list:
 
 def compare_percentiles(candidate_stats: dict, root_stats: dict) -> float:
     """
-    Compares two percentile distributions using the Wasserstein distance (Earth Mover's Distance).
-    This is ideal for comparing the distribution of statistical values from different datasets.
-
-    :param candidate_stats: Dictionary with candidate fingerprint percentiles.
-    :param root_stats: Dictionary with root fingerprint percentiles.
-    :return: A float representing the Wasserstein distance between the two distributions.
+    Calculates the Wasserstein distance between the percentile distributions of two datasets.
+    
+    Extracts the 25th, 50th, and 75th percentiles from each input dictionary and computes the Wasserstein distance (Earth Mover's Distance) between the resulting distributions.
+    
+    Args:
+        candidate_stats: Dictionary containing percentile statistics for the candidate dataset.
+        root_stats: Dictionary containing percentile statistics for the root dataset.
+    
+    Returns:
+        The Wasserstein distance as a float, representing the difference between the two percentile distributions.
     """
     candidate_values = extract_percentiles(candidate_stats)
     root_values = extract_percentiles(root_stats)
@@ -76,12 +85,11 @@ def compare_percentiles(candidate_stats: dict, root_stats: dict) -> float:
 
 def should_compare_fields(candidate_field_id: str, root_field_id: str) -> bool:
     """
-    Determines if two field IDs are similar enough to warrant statistical comparison.
-    This checks if the field IDs match exactly or if they refer to similar concepts.
-
-    :param candidate_field_id: Field ID from the candidate fingerprint
-    :param root_field_id: Field ID from the root fingerprint
-    :return: Boolean indicating whether the fields should be compared
+    Determines whether two field IDs are similar enough for statistical comparison.
+    
+    Returns True if the IDs match exactly, or if their last segments (after splitting by "/")
+    match exactly or are substrings of each other. Returns False if either ID is empty or None,
+    or if no similarity is found.
     """
     logger.debug(
         f"Comparing field IDs - Candidate: '{candidate_field_id}', Root: '{root_field_id}'"
@@ -128,18 +136,12 @@ def compare_statistics(
     root_field_id: str = None,
 ) -> float:
     """
-    Compares all statistics between two distributions using the Wasserstein distance.
-    This provides a more comprehensive comparison than just percentiles.
-
-    If field IDs are provided, it first checks if the fields should be compared based on their IDs.
-    If field IDs don't match or are not similar, returns float('inf') to indicate maximum distance.
-
-    :param candidate_stats: Dictionary with candidate fingerprint statistics.
-    :param root_stats: Dictionary with root fingerprint statistics.
-    :param candidate_field_id: Optional field ID from the candidate fingerprint
-    :param root_field_id: Optional field ID from the root fingerprint
-    :return: A float representing the Wasserstein distance between the two distributions,
-             or float('inf') if field IDs don't match and shouldn't be compared.
+    Compares comprehensive statistical summaries of two distributions using the Wasserstein distance.
+    
+    If both field IDs are provided and determined to be dissimilar, returns infinity to indicate no valid comparison. Otherwise, extracts a set of statistics from each input and computes the Wasserstein distance between them.
+    
+    Returns:
+        The Wasserstein distance between the two distributions, or float('inf') if the field IDs are dissimilar.
     """
     if candidate_field_id is not None and root_field_id is not None:
         if not should_compare_fields(candidate_field_id, root_field_id):

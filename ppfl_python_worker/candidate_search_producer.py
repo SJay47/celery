@@ -11,7 +11,14 @@ load_dotenv()
 
 def get_keycloak_token():
     """
-    Obtain an access token from Keycloak using username/password (Resource Owner Password Flow).
+    Retrieves an access token from Keycloak using the Resource Owner Password Credentials flow.
+    
+    Raises:
+        ValueError: If any required Keycloak environment variable is missing.
+        HTTPError: If the token request fails.
+    
+    Returns:
+        The access token as a string.
     """
     token_url = os.environ.get("KEYCLOAK_TOKEN_URL")
     client_id = os.environ.get("KEYCLOAK_CLIENT_ID")
@@ -36,8 +43,15 @@ def get_keycloak_token():
 
 def get_candidate_search_status(organization_id, experiment_id, token):
     """
-    Call the GET /api/fedml-experiments/{organizationId}/{experimentId}/candidate_search_status endpoint
-    using the Bearer token.
+    Retrieves the candidate search status for a given organization and experiment.
+    
+    Args:
+        organization_id: The unique identifier of the organization.
+        experiment_id: The unique identifier of the experiment.
+        token: Bearer access token for API authentication.
+    
+    Returns:
+        The JSON response containing the candidate search status.
     """
     base_url = os.environ.get("API_BASE_URL", "http://localhost")
     endpoint = f"/api/fedml-experiments/{organization_id}/{experiment_id}/candidate_search_status"
@@ -52,8 +66,9 @@ def get_candidate_search_status(organization_id, experiment_id, token):
 
 def publish_to_rabbitmq(message):
     """
-    Publish the message (Python dict) to the specified RabbitMQ queue.
-    The queue name, host, and port are taken from environment variables.
+    Publishes a Python dictionary message to a RabbitMQ queue.
+    
+    The queue name, host, and port are determined by environment variables. The message is serialized to JSON and sent with persistent delivery mode.
     """
     rabbitmq_host = os.environ.get("RABBITMQ_HOST", "localhost")
     rabbitmq_port = int(os.environ.get("RABBITMQ_PORT", "5672"))
@@ -82,10 +97,9 @@ def publish_to_rabbitmq(message):
 
 def main():
     """
-    Main flow:
-      1. Get Keycloak token.
-      2. GET candidate search status from the API.
-      3. Publish the API response to RabbitMQ (queue_A by default).
+    Coordinates authentication, API querying, and message publishing for candidate search status.
+    
+    Retrieves organization and experiment IDs from environment variables, obtains a Keycloak access token, fetches candidate search status from the API, and publishes the result to a RabbitMQ queue. Raises a ValueError if required environment variables are missing.
     """
     organization_id = os.environ.get("ORGANIZATION_ID")
     experiment_id = os.environ.get("EXPERIMENT_ID")
