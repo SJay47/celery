@@ -84,7 +84,16 @@ logger.debug("=" * 80)
 
 def ensure_uuid_string_format(fingerprint_id: Union[str, int]) -> str:
     """
-    Ensure the fingerprint ID is properly formatted as a UUID-style string.
+    Formats a fingerprint ID as a UUID string with hyphens if possible.
+    
+    If the input is a 32-character hexadecimal string, inserts hyphens to match UUID format.
+    Logs a warning if the ID does not conform to UUID standards.
+    
+    Args:
+        fingerprint_id: The fingerprint identifier as a string or integer.
+    
+    Returns:
+        The fingerprint ID as a UUID-style string, or the original string if formatting is not possible.
     """
     fp_id_str = str(fingerprint_id)
     uuid_pattern = re.compile(
@@ -102,6 +111,17 @@ def ensure_uuid_string_format(fingerprint_id: Union[str, int]) -> str:
 
 
 def format_fingerprint_ids(fingerprint_ids: List[Union[str, int]]) -> List[str]:
+    """
+    Formats a list of fingerprint IDs as UUID strings.
+    
+    Each fingerprint ID is converted to a standardized UUID string format, inserting hyphens if necessary. Logs any changes made during formatting.
+    
+    Args:
+        fingerprint_ids: List of fingerprint IDs as strings or integers.
+    
+    Returns:
+        List of fingerprint IDs formatted as UUID strings.
+    """
     formatted_ids = [ensure_uuid_string_format(fp_id) for fp_id in fingerprint_ids]
     # Log the conversion details for each fingerprint ID
     for i, (before, after) in enumerate(zip(fingerprint_ids, formatted_ids)):
@@ -111,17 +131,28 @@ def format_fingerprint_ids(fingerprint_ids: List[Union[str, int]]) -> List[str]:
 
 
 def get_mongo_client():
+    """
+    Creates and returns a new MongoDB client using the configured connection URI.
+    
+    Returns:
+        A MongoClient instance connected to the MongoDB server specified by MONGO_URI.
+    """
     return MongoClient(MONGO_URI)
 
 
 @app.task
 def process_candidate_search_message(message_json, publish_result=True):
     """
-    Process a candidate search message from the queue.
+    Processes a candidate search message to verify fingerprint IDs against a MongoDB collection.
+    
+    Parses the input message to extract fingerprint IDs and an experiment ID, checks for the existence of these fingerprints in the configured MongoDB collection, and determines the verification status. Optionally publishes the result to a RabbitMQ queue.
     
     Args:
-        message_json: The message to process
-        publish_result: Whether to publish the result to queue B (default: True)
+        message_json: The candidate search message as a JSON string or dictionary.
+        publish_result: If True, publishes the verification result to queue B (default: True).
+    
+    Returns:
+        A dictionary containing the experiment ID, the count of verified fingerprints, and the verification status.
     """
     logger.debug("=" * 80)
     logger.debug("ENVIRONMENT VARIABLES:")
@@ -247,7 +278,10 @@ def process_candidate_search_message(message_json, publish_result=True):
 
 def publish_to_queue_b(message: dict):
     """
-    Publish the result message to queue B using RabbitMQ.
+    Publishes a message dictionary to the configured RabbitMQ queue B.
+    
+    Args:
+        message: The result data to be serialized and sent to the queue.
     """
     try:
         connection = pika.BlockingConnection(
