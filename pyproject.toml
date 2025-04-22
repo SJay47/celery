@@ -1,0 +1,32 @@
+[project]
+name = "ppfl-python-worker"
+version = "0.1.0"
+description = "Python worker for PPFL"
+authors = [
+    {name = "Sanjay"}
+]
+readme = "README.md"
+
+[tool.poetry]
+name = "ppfl-python-worker"
+version = "0.1.0"
+description = "Python worker for PPFL"
+authors = ["Sanjay"]
+readme = "README.md"
+packages = [{include = "ppfl_python_worker"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pika = "^1.3.2"
+python-dotenv = "^1.0.1"
+requests = "^2.31.0"
+pymongo = "^4.11.3"
+celery = "^5.2.7"
+scipy = "^1.15.2"
+
+[tool.poetry.scripts]
+producer = "ppfl_python_worker.candidate_search_producer:main"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
